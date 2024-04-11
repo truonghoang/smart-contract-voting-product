@@ -1,82 +1,180 @@
-// SPDX-License-Identifier: none
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-contract ProductVoting {
-    // tạo struct để lưu cấu trúc dữ liệu liên quan
-    struct Product {
-        string name;
-        uint256 totalVotes;
-        uint256[] voteCounts;
-    }
+import "hardhat/console.sol";
 
-    struct Voter {
-        address voterAddress;
+contract Voting {
+    /*  variable */
+    uint256 public productCount; // dùng để khởi tạo id
+    /*  struct */
+    struct ProductFeedBack {
         uint256 productId;
-        uint256 voteIndex;
+        address reviewer;
+        uint8 rating;
+        string reviewText;
+        string timestamp;
+    }
+    struct Product {
+        uint256 productId;
+        string name;
+        string imageLink;
+    }
+    struct RateProduct {
+        uint256 productId;
+        uint8 rate;
+        uint256 countUser;
+    }
+    struct ProductOwner {
+        // address voterAddress;
+        uint256 productId;
+        uint8 rate;
     }
 
-    mapping(address => Voter) voters;
-    mapping(uint256 => Product) products;
-    uint256 public productCount;
+    /*  contructor */
 
-    event ProductAdded(uint256 indexed productId, string name);
-    event VoteCast(address indexed voter, uint256 indexed productId, uint256 voteIndex);
+    constructor() {
+        Product memory newProduct = Product({
+            productId: 0,
+            name: "default",
+            imageLink: "default"
+        });
+        products[0] = newProduct;
+        productCount++;
+    }
 
-    function addProduct(string memory name, uint256[] memory voteRates) public {
+    /*  modifier */
+    modifier checkName(string memory name) {
         require(bytes(name).length > 0, "Product name cannot be empty");
-        require(voteRates.length > 0, "Vote rates cannot be empty");
-
-        products[productCount++] = Product({
-            name: name,
-            totalVotes: 0,
-            voteCounts: voteRates
-        });
-
-        emit ProductAdded(productCount - 1, name);
+        _;
     }
 
-    function vote(uint256 productId, uint256 voteIndex) public {
-        require(productId < productCount, "Invalid product ID");
-        require(voteIndex < products[productId].voteCounts.length, "Invalid vote index");
-        require(voters[msg.sender].productId == 0, "You have already voted");
+    modifier voteRate(uint8 voteRates) {
+        require(
+            voteRates > 0 && voteRates <= 5,
+            "Vote rates cannot be empty and maximum 5"
+        );
+        _;
+    }
 
-        voters[msg.sender] = Voter({
-            voterAddress: msg.sender,
+    modifier hasVote(uint256 productId) {
+        require(
+            hasVotedProduct[productId][msg.sender] == false,
+            "This product has voted by you"
+        );
+        _;
+    }
+    modifier checkPage(uint page, uint limit) {
+        require(page > 0 && limit > 0, "input invalid");
+        _;
+    }
+
+    /*  mapping 
+      - ánh xạ address đại diện là key của mapping
+      - User đại diện cho value của mapping
+      - voters tên của biến khi mappings
+      - mapping save as : voters[address] = User
+      - sử dụng mapping lưu trữ dữ liệu tốn ít bộ nhớ hơn vs mảng
+     */
+
+    mapping(address => mapping(uint256 => ProductFeedBack)) productFeedBacks; // get info by user voted
+    mapping(uint256 => Product) products; // get info by user;
+    mapping(uint256 => mapping(address => bool)) hasVotedProduct;
+    mapping(uint256 => RateProduct) rateProducts;
+    mapping(address => ProductOwner[]) productOwners; // ánh xạ address với 1 mảng productOwner
+    /*  event */
+    event ProductAdded(uint256 indexed productId, string name);
+
+    event FeedBack(address indexed voter, uint256 indexed productId);
+
+    /*  function */
+    /*  function add product*/
+    function addProduct(
+        string memory name,
+        string memory imageLink
+    ) public checkName(name) {
+        uint256 productId = productCount++;
+
+        Product memory newProduct = Product({
             productId: productId,
-            voteIndex: voteIndex
+            name: name,
+            imageLink: imageLink
         });
 
-        products[productId].totalVotes++;
-        products[productId].voteCounts[voteIndex]++;
+        products[productId] = newProduct;
 
-        emit VoteCast(msg.sender, productId, voteIndex);
+        emit ProductAdded(productId, name);
+    }
+    /* đánh giá sản phẩm */
+
+    function feedbackProduct(  uint productId, string memory reviewText,  uint8 rating,  string memory timestamp ) public voteRate(rating) hasVote(productId) {
+        ProductFeedBack memory newProductFeedBack = ProductFeedBack({
+            productId: productId,
+            reviewText: reviewText,
+            reviewer: msg.sender,
+            timestamp: timestamp,
+            rating: rating
+        });
+
+        productFeedBacks[msg.sender][productId] = newProductFeedBack;
+
+        RateProduct memory rateProduct = rateProducts[productId]; // Lấy tham chiếu đến RateProduct từ mapping
+
+        uint userUp = rateProduct.countUser + 1; // Tăng countUser lên 1
+
+        uint rateChange = (rateProduct.rate *
+            rateProduct.countUser +
+            rating) / userUp;
+
+        rateProducts[productId].countUser = userUp; // Cập nhật countUser mới
+
+        rateProducts[productId].rate = uint8(rateChange); // Cập nhật giá trị rate mới
+
+        productOwners[msg.sender].push(ProductOwner(productId, rating)); // thêm sản phẩm vào danh sách của người vote
+
+        emit FeedBack(msg.sender, productId);
     }
 
-    function getProducts() public view returns (Product[] memory) {
-        Product[] memory allProducts = new Product[](productCount);
-        for (uint256 i = 0; i < productCount; i++) {
-            allProducts[i] = products[i];
+    /* thông tin về tổng đánh giá của một product*/
+    function getRatingProduct(
+        uint256 productId
+    ) public view returns (uint8, uint256) {
+        RateProduct memory rateResult = rateProducts[productId];
+
+        return (rateResult.rate, rateResult.countUser);
+    }
+
+    /** lấy tất cả sản phẩm  */
+    function getPaginationProduct(
+        uint limit,
+        uint page
+    ) public view returns (Product[] memory allProduct) {
+       
+        if (productCount <1) {
+            return new Product[](1);
         }
-        return allProducts;
+
+        allProduct = new Product[](limit);
+        uint element = (page - 1) * limit + limit;
+        uint index = (page - 1) * limit + 1;
+
+       
+        if (index > productCount) {
+            return new Product[](1); 
+        }
+
+        for (uint i = index; i <= element ; i++) {
+           allProduct[i - 1] = products[i];  
+        }
+        return allProduct;
     }
 
-    function getVoteCounts(uint256 productId) public view returns (uint256[] memory) {
-        require(productId < productCount, "Invalid product ID");
-        return products[productId].voteCounts;
-    }
+    /** lấy danh sách các sản phẩm đã vote     */
 
-    function getTotalVotes(uint256 productId) public view returns (uint256) {
-        require(productId < productCount, "Invalid product ID");
-        return products[productId].totalVotes;
-    }
-
-    function hasUserVoted(address user) public view returns (bool) {
-        return voters[user].productId != 0;
-    }
-
-    function getVoteDetails(address user) public view returns (uint256, uint256) {
-        require(hasUserVoted(user), "User has not voted");
-        Voter memory voter = voters[user];
-        return (voter.productId, voter.voteIndex);
+    function getProductOwners() public view returns (ProductOwner[] memory) {
+        if (productOwners[msg.sender].length == 0) {
+            return new ProductOwner[](1);
+        } else {
+            return productOwners[msg.sender];
+        }
     }
 }

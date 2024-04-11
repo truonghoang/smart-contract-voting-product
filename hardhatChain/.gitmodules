@@ -1,0 +1,3 @@
+[submodule "client-voting-smart-contract"]
+	path = /  
+	url = https://github.com/truonghoang/client-voting-smart-contract.git

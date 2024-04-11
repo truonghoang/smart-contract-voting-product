@@ -5,6 +5,17 @@
     "hardhat": "^2.22.2"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.0.2"
+    "@openzeppelin/contracts": "^5.0.2",
+    "npm-run-all": "^4.1.5"
+  },
+  "scripts": {
+    "client":"cd client-voting-smart-contract && npm install ",
+    "chain": "npm install",
+    "all": "npm-run-all -p chain client",
+    "compile-smc": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat deploy",
+    "deploy:local" : "npx hardhat node",
+    "ignition": "npx hardhat ignition deploy ignition/modules/Voting.ts --network localhost"
   }
 }

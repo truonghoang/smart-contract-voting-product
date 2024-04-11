@@ -1,0 +1,3 @@
+[submodule "hardhatChain/client-voting-smart-contract"]
+	path = hardhatChain/client-voting-smart-contract
+	url = https://github.com/truonghoang/client-voting-smart-contract.git
