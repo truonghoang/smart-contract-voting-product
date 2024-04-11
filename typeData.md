@@ -1,22 +1,22 @@
 smart contract{
 
  // fixed-sỉz types
- boolean isEnabled // true or false
- uint a   // 1,2,3
- address sender // 0xf90....
+# boolean isEnabled // true or false
+# uint a   // 1,2,3
+# address sender // 0xf90....
  bytes32 data // chứa byte có độ lớn 32 byte
  // variable-size types
- string name ; // name
- bytes data ;
- unit[] amount; // array [1,4,7,6] phải cùng kiểu dữ liệu
- mapping(address --> bool) whitelist; // 0x45fsdg... =>true
+ # string name ; // name
+# bytes data ;
+ # unit[] amount; // array [1,4,7,6] phải cùng kiểu dữ liệu
+ # mapping(address --> bool) whitelist; // 0x45fsdg... =>true
 // user define
- struct User {
+# struct User {
     uint id
     string name;
     bool isFriend;
  } // user.name
- enum color {
+ # enum color {
     red,green,blue
  } //color.red
 
