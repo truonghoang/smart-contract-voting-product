@@ -16,6 +16,7 @@
     "test": "npx hardhat test",
     "deploy": "npx hardhat deploy",
     "deploy:local" : "npx hardhat node",
+    "coverage" : "npx hardhat coverage",
     "ignition": "npx hardhat ignition deploy ignition/modules/Voting.ts --network localhost"
   }
 }
